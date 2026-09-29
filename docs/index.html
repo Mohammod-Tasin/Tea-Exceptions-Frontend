@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trust & Taste Café</title>
+<style>
+  :root { --bg:#f6ede2; --card:#fffaf3; --ink:#3b2a20; --accent:#8b5a2b; --ok:#3f9b57; --bad:#c0392b; --muted:#a59485; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:16px; background:var(--bg); color:var(--ink); font:16px/1.4 system-ui,sans-serif; }
+  main { max-width:420px; margin:0 auto; }
+  h1 { font-size:1.5rem; text-align:center; margin:16px 0; }
+  .card { background:var(--card); border-radius:16px; padding:16px; margin-bottom:16px; box-shadow:0 2px 8px rgba(59,42,32,.08); }
+  #status { display:flex; align-items:center; gap:10px; font-weight:600; }
+  #dot { width:12px; height:12px; border-radius:50%; background:var(--muted); }
+  #dot.on { background:var(--ok); } #dot.off { background:var(--bad); }
+  button { display:block; width:100%; margin-bottom:12px; padding:18px; border:0; border-radius:14px;
+           background:var(--accent); color:#fff; font-size:1.1rem; font-weight:600; cursor:pointer; }
+  button:last-child { margin-bottom:0; }
+  button:disabled { background:var(--muted); opacity:.6; cursor:not-allowed; }
+  #msg { display:none; text-align:center; font-weight:600; }
+  #msg.show { display:block; }
+  #msg.err { color:var(--bad); }
+</style>
+</head>
+<body>
+<main>
+  <h1>RUET Café</h1>
+  <div class="card" id="status"><span id="dot"></span><span id="statusText">Connecting…</span></div>
+  <div class="card">
+    <button id="test" style="background:var(--ink)">Test Connection</button>
+    <pre id="debug" style="display:none;margin:12px 0 0;font:12px/1.4 monospace;white-space:pre-wrap;word-break:break-all"></pre>
+  </div>
+  <div class="card">
+    <button data-drink="tea" disabled>Tea</button>
+    <button data-drink="coffee" disabled>Coffee</button>
+    <button data-drink="hotwater" disabled>Hot Water</button>
+  </div>
+  <div class="card" id="msg"></div>
+</main>
+<script>
+const API = "http://localhost:8080";
+
+const $ = id => document.getElementById(id);
+const btns = document.querySelectorAll("button[data-drink]");
+let online = false, busy = false;
+let pending = null; // drink label awaiting machine press; cleared once busy is false
+
+function say(text, err) {
+  const m = $("msg");
+  m.textContent = text || "";
+  m.className = "card" + (text ? " show" : "") + (err ? " err" : "");
+}
+
+function render() {
+  $("dot").className = online ? "on" : "off";
+  $("statusText").textContent = online ? "Machine online" : "Machine offline";
+  btns.forEach(b => b.disabled = !online || busy);
+}
+
+async function api(path, opts) {
+  console.log("fetch", path, opts || "");
+  try {
+    const res = await fetch(API + path, opts);
+    const body = await res.json().catch(() => null);
+    console.log("result", path, res.status, body);
+    return { status: res.status, body };
+  } catch (e) {
+    console.log("fetch failed", path, e);
+    return null;
+  }
+}
+
+async function poll() {
+  const r = await api("/api/status");
+  if (r && r.status === 200) {
+    online = !!r.body.online; busy = !!r.body.busy;
+    if (pending) {
+      if (busy) say(`Press ${pending} on the machine now (${r.body.secondsLeft}s)`);
+      else { pending = null; say(""); }
+    }
+  } else {
+    online = false; busy = false;
+    if (pending) { pending = null; say(""); }
+  }
+  render();
+}
+
+btns.forEach(b => b.onclick = async () => {
+  const r = await api("/api/unlock", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ drink: b.dataset.drink }),
+  });
+  if (!r) return say("Can't reach the server", true);
+  if (r.status === 200) {
+    pending = b.textContent.toUpperCase();
+    busy = true; render();
+    say(`Press ${pending} on the machine now (${r.body.seconds}s)`);
+  } else if (r.status === 409 && r.body && r.body.error === "machine busy") {
+    say("Someone else is using it, try again shortly", true);
+  } else if (r.status === 409) {
+    say("Machine is offline", true);
+  } else {
+    say((r.body && r.body.error) || "Something went wrong", true);
+  }
+  poll();
+});
+
+$("test").onclick = async () => {
+  let out;
+  try {
+    const res = await fetch(API + "/api/unlock", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ drink: "tea" }),
+    });
+    out = res.status + " " + await res.text();
+  } catch (e) {
+    out = "ERROR " + e.message;
+  }
+  console.log("test connection", out);
+  const d = $("debug");
+  d.textContent = out;
+  d.style.display = "block";
+};
+
+poll();
+setInterval(poll, 1000);
+</script>
+</body>
+</html>
