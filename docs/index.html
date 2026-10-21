@@ -12,7 +12,10 @@
   h1 { font-size:1.5rem; text-align:center; margin:16px 0; }
   .card { background:var(--card); border-radius:16px; padding:16px; margin-bottom:16px; box-shadow:0 2px 8px rgba(59,42,32,.08); }
   #status { display:flex; align-items:center; gap:10px; font-weight:600; }
-  #dot { width:12px; height:12px; border-radius:50%; background:var(--muted); }
+  #status.ready { background:#e3f4e8; color:#1f6b36; }
+  #status.heating { background:#fdebd3; color:#a35a00; }
+  #status.fault { background:#fbe0dc; color:#9b2a1d; }
+  #dot { flex:none; width:12px; height:12px; border-radius:50%; background:var(--muted); }
   #dot.on { background:var(--ok); } #dot.off { background:var(--bad); }
   button { display:block; width:100%; margin-bottom:12px; padding:18px; border:0; border-radius:14px;
            background:var(--accent); color:#fff; font-size:1.1rem; font-weight:600; cursor:pointer; }
@@ -52,10 +55,23 @@ function say(text, err) {
   m.className = "card" + (text ? " show" : "") + (err ? " err" : "");
 }
 
+let st = {}; // last /api/status body
+
+function heatMsg() {
+  const t = st.tempC == null ? "" : st.tempBelow ? ` ≈ ${st.tempC}°C-এর নিচে` : ` ≈ ${st.tempC}°C`;
+  return "পানি গরম হচ্ছে, একটু অপেক্ষা করুন" + t;
+}
+
 function render() {
+  const ready = online && st.machineState === "ready";
+  let cls = "", text = "Machine offline";
+  if (online && st.machineState === "ready") [cls, text] = ["ready", "মেশিন প্রস্তুত"];
+  else if (online && st.machineState === "heating") [cls, text] = ["heating", heatMsg()];
+  else if (online && st.machineState === "sensor_fault") [cls, text] = ["fault", "মেশিন সাময়িকভাবে বন্ধ"];
   $("dot").className = online ? "on" : "off";
-  $("statusText").textContent = online ? "Machine online" : "Machine offline";
-  btns.forEach(b => b.disabled = !online || busy);
+  $("status").className = "card " + cls;
+  $("statusText").textContent = text;
+  btns.forEach(b => b.disabled = !ready || busy);
 }
 
 async function api(path, opts) {
@@ -74,13 +90,13 @@ async function api(path, opts) {
 async function poll() {
   const r = await api("/api/status");
   if (r && r.status === 200) {
-    online = !!r.body.online; busy = !!r.body.busy;
+    st = r.body; online = !!st.online; busy = !!st.busy;
     if (pending) {
       if (busy) say(`Press ${pending} on the machine now (${r.body.secondsLeft}s)`);
       else { pending = null; say(""); }
     }
   } else {
-    online = false; busy = false;
+    st = {}; online = false; busy = false;
     if (pending) { pending = null; say(""); }
   }
   render();
@@ -99,6 +115,8 @@ btns.forEach(b => b.onclick = async () => {
     say(`Press ${pending} on the machine now (${r.body.seconds}s)`);
   } else if (r.status === 409 && r.body && r.body.error === "machine busy") {
     say("Someone else is using it, try again shortly", true);
+  } else if (r.status === 409 && r.body && r.body.error === "not_ready") {
+    say(heatMsg(), true);
   } else if (r.status === 409) {
     say("Machine is offline", true);
   } else {
@@ -125,8 +143,10 @@ $("test").onclick = async () => {
   d.style.display = "block";
 };
 
-poll();
-setInterval(poll, 1000);
+(async function loop() {
+  await poll();
+  setTimeout(loop, online && st.machineState === "ready" ? 1000 : 3000);
+})();
 </script>
 </body>
 </html>
