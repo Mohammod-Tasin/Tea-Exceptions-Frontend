@@ -1,16 +1,16 @@
 "use strict";
 (async function () {
-const { $, el, api, bn, errText } = TC;
+const { $, el, api, num, credits, errText } = TC;
 const { cfg, me } = await TC.boot();
 const app = $("app");
-if (!me) return TC.signInCard(app, cfg, "রিচার্জ করতে সাইন ইন করুন।");
+if (!me) return TC.signInCard(app, cfg, "Sign in to recharge your credits.");
 
 const msg = el("p", { class: "msg", hidden: true });
 
 // TODO(payment): when the payment gateway is live, /api/recharge/checkout will return a
 // checkout URL; redirect to it here. This is the only place that needs to change.
 function handleCheckout(r) {
-  if (r && r.status === 501) return "অনলাইন পেমেন্ট শিগগিরই আসছে। এখন ক্রেডিট নিতে অ্যাডমিনের সাথে যোগাযোগ করুন।";
+  if (r && r.status === 501) return "Online payment is coming soon. For now, contact an admin to add credits.";
   return errText(r);
 }
 
@@ -23,11 +23,11 @@ async function choose(p, btn) {
 
 const pkgs = (cfg && cfg.rechargePackages) || [];
 app.append(
-  el("div", { class: "card center" }, el("div", { class: "muted" }, "বর্তমান ব্যালান্স"), el("div", { class: "big" }, bn(me.credits)), el("div", { class: "muted" }, "১ ক্রেডিট = ১ টাকা")),
+  el("div", { class: "card center" }, el("div", { class: "muted" }, "Your balance"), el("div", { class: "big" }, num(me.credits)), el("div", { class: "muted" }, "1 credit = 1 BDT")),
   el("div", { class: "pkgs" }, pkgs.map(p => {
-    const b = el("button", { onclick: () => choose(p, b) }, el("span", {}, bn(p.credits) + " ক্রেডিট"), el("small", {}, "৳ " + bn(p.bdt)));
+    const b = el("button", { onclick: () => choose(p, b) }, el("span", {}, credits(p.credits)), el("small", {}, num(p.bdt) + " BDT"));
     return b;
   })),
-  pkgs.length ? null : el("p", { class: "muted center" }, "কোনো প্যাকেজ পাওয়া যায়নি"),
+  pkgs.length ? null : el("p", { class: "muted center" }, "No recharge packages available right now"),
   el("div", { class: "card", style: "margin-top:16px" }, msg));
 })();

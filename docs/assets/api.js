@@ -34,29 +34,30 @@ async function api(path, opts = {}) {
 }
 
 function errText(r) {
-  if (!r) return "সার্ভারের সাথে যোগাযোগ করা যাচ্ছে না";
-  if (r.status === 401) return "সেশন শেষ হয়ে গেছে, আবার সাইন ইন করুন";
-  if (r.status === 403) return "অনুমতি নেই";
-  if (r.status === 429) return "একটু পরে চেষ্টা করুন";
-  return (r.body && r.body.error) || "কিছু একটা ভুল হয়েছে";
+  if (!r) return "Can't reach the server. Please check your connection.";
+  if (r.status === 401) return "Please sign in again.";
+  if (r.status === 403) return "You don't have permission to view this page.";
+  if (r.status === 429) return "Too many tries — please wait a moment.";
+  return (r.body && r.body.error) || "Something went wrong. Please try again.";
 }
 
 let cfgP;
 const getConfig = () => cfgP || (cfgP = api("/api/config").then(r => (r && r.status === 200 ? r.body : null)));
 const getMe = () => api("/api/me").then(r => (r && r.status === 200 ? r.body : null));
 
-const bn = n => new Intl.NumberFormat("bn-BD").format(n);
+const num = n => new Intl.NumberFormat("en-US").format(n);
+const credits = n => `${num(n)} credit${Number(n) === 1 ? "" : "s"}`;
 const fmtTime = iso => {
   const d = new Date(iso);
-  return isNaN(d) ? "" : d.toLocaleString("bn-BD", { timeZone: "Asia/Dhaka", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
+  return isNaN(d) ? "" : d.toLocaleString("en-GB", { timeZone: "Asia/Dhaka", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true }).replace(/(am|pm)/, m => m.toUpperCase());
 };
 const pick = (o, ...keys) => { for (const k of keys) if (o && o[k] != null) return o[k]; };
 // List endpoints may return a bare array or wrap it; accept both.
 const list = b => Array.isArray(b) ? b : ((b && Object.values(b).find(Array.isArray)) || []);
 
-const DRINKS = { tea: "চা", coffee: "কফি", hotwater: "গরম পানি" };
-const STATUS = { pending: "পেন্ডিং", completed: "সম্পন্ন", refunded: "ফেরত" };
-const KIND = { recharge: "রিচার্জ", purchase: "ক্রয়", refund: "ফেরত", admin_adjust: "অ্যাডমিন সমন্বয়" };
+const DRINKS = { tea: "Tea", coffee: "Coffee", hotwater: "Hot water" };
+const STATUS = { pending: "Pending", completed: "Completed", refunded: "Refunded" };
+const KIND = { recharge: "Recharge", purchase: "Purchase", refund: "Refund", admin_adjust: "Admin adjustment" };
 
 let toastT;
 function toast(msg, err) {
@@ -75,14 +76,14 @@ function table(heads, rows) {
 }
 
 // Modal confirm. rows: [[label, value]]. Resolves true on confirm.
-function confirmDialog(title, rows, { note, confirmText = "নিশ্চিত করুন", disabled } = {}) {
+function confirmDialog(title, rows, { note, confirmText = "Confirm", disabled } = {}) {
   return new Promise(res => {
     const d = el("dialog", {});
     d.append(el("h2", {}, title),
       el("dl", {}, rows.flatMap(([k, v]) => [el("dt", {}, k), el("dd", {}, String(v))])),
       note && el("p", { class: "muted" }, note),
       el("button", { disabled, onclick: () => d.close("ok") }, confirmText),
-      el("button", { class: "secondary", onclick: () => d.close("") }, "বাতিল"));
+      el("button", { class: "secondary", onclick: () => d.close("") }, "Cancel"));
     d.addEventListener("close", () => { res(d.returnValue === "ok"); d.remove(); });
     document.body.append(d); d.showModal();
   });
@@ -111,7 +112,7 @@ function signInCard(container, cfg, intro) {
     let ok = retry ? await retryGsi() : await waitGsi();
     ok = ok && (await waitGsi(1000)) && cfg && cfg.googleClientId;
     if (!ok) {
-      note.append("গুগল সাইন-ইন লোড হয়নি। ", el("button", { class: "link", onclick: () => show(true) }, "আবার চেষ্টা করুন"));
+      note.append("Google sign-in didn't load. ", el("button", { class: "link", onclick: () => show(true) }, "Try again"));
       return;
     }
     if (!gsiInit) {
@@ -131,18 +132,18 @@ async function logout() {
 }
 
 // ---- header ----
-const setCredits = n => { const b = $("bal"); if (b) b.textContent = bn(n) + " ক্রেডিট"; };
+const setCredits = n => { const b = $("bal"); if (b) b.textContent = credits(n); };
 
 function renderHeader(me) {
   const h = $("hdr");
   h.textContent = "";
-  const links = [["হোম", "index.html"]];
-  if (me) links.push(["হিস্টোরি", "history.html"], ["রিচার্জ", "recharge.html"]);
-  if (me && me.isAdmin) links.push(["অ্যাডমিন", "admin.html"]);
+  const links = [["Home", "index.html"]];
+  if (me) links.push(["History", "history.html"], ["Recharge", "recharge.html"]);
+  if (me && me.isAdmin) links.push(["Admin", "admin.html"]);
   const menu = el("nav", { id: "menu", hidden: true },
     links.map(([t, href]) => el("a", { href }, t)),
-    me && el("button", { onclick: logout }, "লগআউট"));
-  const toggle = el("button", { class: "menu-btn", "aria-label": "মেনু", "aria-expanded": "false", onclick: () => {
+    me && el("button", { onclick: logout }, "Log out"));
+  const toggle = el("button", { class: "menu-btn", "aria-label": "Menu", "aria-expanded": "false", onclick: () => {
     menu.hidden = !menu.hidden; toggle.setAttribute("aria-expanded", String(!menu.hidden));
   } }, "☰");
   h.append(el("div", { class: "bar" },
@@ -159,5 +160,5 @@ async function boot() {
   return { cfg, me };
 }
 
-window.TC = { $, el, api, errText, getConfig, getMe, bn, fmtTime, pick, list, DRINKS, STATUS, KIND, toast, badge, table, confirmDialog, signInCard, renderHeader, setCredits, boot };
+window.TC = { $, el, api, errText, getConfig, getMe, num, credits, fmtTime, pick, list, DRINKS, STATUS, KIND, toast, badge, table, confirmDialog, signInCard, renderHeader, setCredits, boot };
 })();

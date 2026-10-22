@@ -1,29 +1,29 @@
 "use strict";
 (async function () {
-const { $, el, api, bn, pick, list, fmtTime, DRINKS, KIND, badge, errText } = TC;
+const { $, el, api, num, credits, pick, list, fmtTime, DRINKS, KIND, badge, errText } = TC;
 const { cfg, me } = await TC.boot();
 const app = $("app");
-if (!me) return TC.signInCard(app, cfg, "হিস্টোরি দেখতে সাইন ইন করুন।");
+if (!me) return TC.signInCard(app, cfg, "Sign in to see your history.");
 
 const item = (title, meta, side) => el("div", { class: "item" }, el("div", {}, el("div", {}, title), el("div", { class: "muted" }, meta)), el("div", { class: "side" }, side));
 
 const views = {
   orders: {
-    label: "অর্ডার", path: "/api/me/orders?limit=20", empty: "কোনো অর্ডার নেই",
+    label: "Orders", path: "/api/me/orders?limit=20", empty: "No orders yet",
     row: o => {
       const p = pick(o, "price", "cost", "credits") || 0, reason = pick(o, "refundReason", "refund_reason");
       return item(DRINKS[o.drink] || o.drink,
         [fmtTime(pick(o, "createdAt", "created_at")), reason && "· " + reason].filter(Boolean).join(" "),
-        [p ? bn(p) + " ক্রেডিট " : "ফ্রি ", badge(o.status)]);
+        [p ? credits(p) + " " : "Free ", badge(o.status)]);
     },
   },
   tx: {
-    label: "লেনদেন", path: "/api/me/transactions?limit=50", empty: "কোনো লেনদেন নেই",
+    label: "Transactions", path: "/api/me/transactions?limit=50", empty: "No transactions yet",
     row: t => {
       const amt = Number(t.amount) || 0, bal = pick(t, "balanceAfter", "balance_after");
       return item(KIND[t.kind] || t.kind,
-        [fmtTime(pick(t, "createdAt", "created_at")), bal != null && `ব্যালান্স ${bn(bal)}`, t.note].filter(Boolean).join(" · "),
-        el("span", { class: amt < 0 ? "minus" : "plus" }, (amt < 0 ? "−" : "+") + bn(Math.abs(amt))));
+        [fmtTime(pick(t, "createdAt", "created_at")), bal != null && `Balance ${num(bal)}`, t.note].filter(Boolean).join(" · "),
+        el("span", { class: amt < 0 ? "minus" : "plus" }, (amt < 0 ? "−" : "+") + num(Math.abs(amt))));
     },
   },
 };
@@ -35,7 +35,7 @@ app.append(tabs, body);
 async function show(key) {
   tabs.querySelectorAll("button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.k === key)));
   const v = views[key];
-  body.textContent = "লোড হচ্ছে…";
+  body.textContent = "Loading…";
   const r = await api(v.path);
   body.textContent = "";
   if (!r || r.status !== 200) return body.append(el("p", { class: "msg err" }, errText(r)));
