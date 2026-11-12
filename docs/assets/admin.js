@@ -85,7 +85,7 @@ async function loadOrders() {
 
 // ---- payments ----
 const payBox = el("div");
-const payStatus = el("select", { "aria-label": "Payment status" }, [["", "All"], ["pending", "Checking"], ["needs_review", "Needs review"], ["paid", "Paid"], ["not_found", "Not found"], ["used", "Used"], ["too_old", "Too old"], ["not_eligible", "Not eligible"]].map(([v, l]) => el("option", { value: v }, l)));
+const payStatus = el("select", { "aria-label": "Payment status" }, [["", "All"], ...Object.entries(TC.PSTATUS).map(([k, v]) => [k, v[0]])].map(([v, l]) => el("option", { value: v }, l)));
 payStatus.addEventListener("change", loadPayments);
 
 async function loadPayments() {

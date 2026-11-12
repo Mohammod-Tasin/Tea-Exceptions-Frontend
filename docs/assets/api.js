@@ -67,7 +67,7 @@ function toast(msg, err) {
   clearTimeout(toastT); toastT = setTimeout(() => (t.hidden = true), 4000);
 }
 
-const PSTATUS = { paid: ["Paid", "completed"], pending: ["Checking…", "pending"], not_found: ["Not found", "refunded"], used: ["Used", "refunded"], already_used: ["Used", "refunded"], too_old: ["Too old", "refunded"], not_eligible: ["Not eligible", "refunded"], needs_review: ["Needs review", "pending"] };
+const PSTATUS = { pending: ["Checking…", "pending"], paid: ["Paid", "completed"], not_found: ["Not found", "refunded"], already_used: ["Already used", "refunded"], too_old: ["Too old", "refunded"], not_eligible: ["Not eligible", "refunded"], invalid: ["Invalid TrxID", "refunded"], error: ["Failed", "refunded"], needs_review: ["Needs review", "pending"] };
 const payBadge = status => { const [l, c] = PSTATUS[status] || [status, ""]; return el("span", { class: "badge " + c }, l); };
 const badge = status => el("span", { class: "badge " + status }, STATUS[status] || status);
 
@@ -130,7 +130,7 @@ function signInCard(container, cfg, intro) {
 async function logout() {
   await api("/api/auth/logout", { method: "POST" });
   if (gsiReady()) google.accounts.id.disableAutoSelect();
-  location.href = "index.html";
+  location.href = "/";
 }
 
 // ---- header ----
@@ -139,9 +139,9 @@ const setCredits = n => { const b = $("bal"); if (b) b.textContent = credits(n);
 function renderHeader(me) {
   const h = $("hdr");
   h.textContent = "";
-  const links = [["Home", "index.html"]];
-  if (me) links.push(["History", "history.html"], ["Recharge", "recharge.html"]);
-  if (me && me.isAdmin) links.push(["Admin", "admin.html"]);
+  const links = [["Home", "/"]];
+  if (me) links.push(["History", "/history"], ["Recharge", "/recharge"]);
+  if (me && me.isAdmin) links.push(["Admin", "/admin"]);
   const menu = el("nav", { id: "menu", hidden: true },
     links.map(([t, href]) => el("a", { href }, t)),
     me && el("button", { onclick: logout }, "Log out"));
@@ -149,8 +149,8 @@ function renderHeader(me) {
     menu.hidden = !menu.hidden; toggle.setAttribute("aria-expanded", String(!menu.hidden));
   } }, "☰");
   h.append(el("div", { class: "bar" },
-    el("a", { class: "brand", href: "index.html" }, "RUET Café"),
-    me && el("a", { class: "pill", id: "bal", href: "recharge.html" }),
+    el("a", { class: "brand", href: "/" }, "RUET Café"),
+    me && el("a", { class: "pill", id: "bal", href: "/recharge" }),
     me && me.picture && el("img", { class: "avatar", src: me.picture, alt: "", referrerpolicy: "no-referrer" }),
     toggle), menu);
   if (me) setCredits(me.credits);
@@ -162,5 +162,5 @@ async function boot() {
   return { cfg, me };
 }
 
-window.TC = { $, el, api, errText, getConfig, getMe, num, credits, fmtTime, pick, list, DRINKS, STATUS, KIND, toast, badge, payBadge, table, confirmDialog, signInCard, renderHeader, setCredits, boot };
+window.TC = { $, el, api, errText, getConfig, getMe, num, credits, fmtTime, pick, list, DRINKS, STATUS, KIND, toast, badge, PSTATUS, payBadge, table, confirmDialog, signInCard, renderHeader, setCredits, boot };
 })();

@@ -103,7 +103,7 @@ async function unlock(d) {
     me = null; TC.renderHeader(null); renderAuth(); say(errText(r), true);
   } else if (r.status === 402) {
     if (r.body.credits != null) { me.credits = r.body.credits; setBalance(); }
-    say(`Not enough credits. You have ${credits(me.credits)}, this costs ${credits(r.body.price)}.`, true, "recharge.html", "Recharge");
+    say(`Not enough credits. You have ${credits(me.credits)}, this costs ${credits(r.body.price)}.`, true, "/recharge", "Recharge");
   } else if (r.status === 409 && err === "machine busy") say("The machine is busy — try again in a few seconds.", true);
   else if (r.status === 409 && err === "not_ready") say(heatMsg(), true);
   else if (r.status === 409) say("The machine is offline right now.", true);
@@ -145,7 +145,7 @@ async function finish() {
   box.append(
     el("h2", {}, status === "completed" ? `Enjoy your ${DRINKS[a.drink]}!` : status === "refunded" ? `Time ran out — ${credits(price(a.drink))} refunded.` : "We couldn't confirm your order."),
     status === "refunded" && reason && el("p", { class: "muted" }, reason),
-    !status && el("p", { class: "muted" }, el("a", { href: "history.html" }, "Check your History")),
+    !status && el("p", { class: "muted" }, el("a", { href: "/history" }, "Check your History")),
     el("button", { class: "secondary", onclick: () => { box.hidden = true; active = null; renderDrinks(); } }, "OK"));
 }
 

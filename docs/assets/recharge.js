@@ -51,7 +51,7 @@ async function poll(id) {
     if (!p || p.status === "pending") continue;
     loadList();
     if (p.status === "paid") { const m = await TC.getMe(); return done(p.credits, m ? m.credits : null); }
-    const text = { not_found: ERR.not_found_yet, used: ERR.already_used, already_used: ERR.already_used, too_old: ERR.too_old, not_eligible: ERR.not_eligible }[p.status];
+    const text = { not_found: ERR.not_found_yet, invalid: ERR.invalid_trx, already_used: ERR.already_used, too_old: ERR.too_old, not_eligible: ERR.not_eligible }[p.status];
     return say(text || "This payment needs review. Please contact support.", true);
   }
   say("Still checking. Your credits will be added once the payment is confirmed.");
