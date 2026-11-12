@@ -1,6 +1,6 @@
 "use strict";
 (async function () {
-const { $, el, api, num, fmtTime, list, payBadge, errText, setCredits } = TC;
+const { $, el, api, num, credits, fmtTime, list, payBadge, errText, setCredits } = TC;
 const { cfg, me } = await TC.boot();
 const app = $("app");
 if (!me) return TC.signInCard(app, cfg, "Sign in to recharge your credits.");
@@ -21,6 +21,7 @@ const ERR = {
 };
 const claimErr = r => (r && r.body && ERR[r.body.error]) || errText(r);
 
+const balEl = el("div", { class: "big" }, num(me.credits));
 const msg = el("p", { class: "msg", hidden: true });
 const say = (text, err) => { msg.hidden = false; msg.className = "msg" + (err ? " err" : ""); msg.textContent = text; };
 
@@ -36,9 +37,9 @@ const trx = el("input", { type: "text", maxlength: "20", pattern: "[A-Z0-9]{6,20
 trx.addEventListener("input", () => { trx.value = trx.value.toUpperCase().replace(/[^A-Z0-9]/g, ""); });
 const btn = el("button", { type: "submit" }, "Add credits");
 
-function done(credits, balance, already) {
-  say(already ? "This payment was already added to your account." : `✓ ${num(credits)} credits added. New balance: ${num(balance)}`);
-  if (balance != null) setCredits(balance);
+function done(added, balance, already) {
+  say(already ? "This payment was already added to your account." : `✓ ${credits(added)} added. New balance: ${num(balance)}`);
+  if (balance != null) { setCredits(balance); balEl.textContent = num(balance); }
   trx.value = "";
   loadList();
 }
@@ -77,11 +78,11 @@ async function loadList() {
   const rows = list(r.body);
   listBox.replaceChildren(...(rows.length ? rows.map(p => el("div", { class: "item" },
     el("div", {}, el("div", {}, p.trxId), el("div", { class: "muted" }, fmtTime(p.paidAt || p.createdAt))),
-    el("div", { class: "side" }, [p.status === "paid" ? "+" + num(p.credits) + " " : "", payBadge(p.status)]))) : [el("p", { class: "muted center" }, "No recharges yet")]));
+    el("div", { class: "side" }, [p.status === "paid" ? "+" + credits(p.credits) + " " : "", payBadge(p.status)]))) : [el("p", { class: "muted center" }, "No recharges yet")]));
 }
 
 app.append(
-  el("div", { class: "card center" }, el("div", { class: "muted" }, "Your balance"), el("div", { class: "big" }, num(me.credits)), el("div", { class: "muted" }, "1 Taka = 1 credit")),
+  el("div", { class: "card center" }, el("div", { class: "muted" }, "Your balance"), balEl, el("div", { class: "muted" }, "1 Taka = 1 credit")),
   el("div", { class: "card" },
     el("h2", {}, "1. Send money with bKash to"), numEl, copyBtn, el("p", { class: "muted" }, "Any amount. 1 Taka = 1 credit."),
     el("h2", {}, "2. Copy the TrxID from the bKash confirmation SMS"), el("p", { class: "muted" }, "Example: ", el("code", {}, "TrxID DKC5DFEGPR")),
