@@ -79,7 +79,7 @@ async function refreshMe() {
 async function ask(d) {
   if (inflight || active || !me) return;
   const after = me.credits - price(d);
-  const secs = cfg && cfg.unlockSeconds ? `${cfg.unlockSeconds} seconds` : "the time limit"; // unlockSeconds is not in /api/config today; the real value arrives with the unlock response
+  const secs = cfg && cfg.unlockSeconds ? `${cfg.unlockSeconds} seconds` : "the time limit";
   const ok = await TC.confirmDialog(`Unlock ${DRINKS[d]} for ${price(d) ? credits(price(d)) : "free"}?`, [], {
     note: after < 0 ? `Not enough credits. You have ${credits(me.credits)}, this costs ${credits(price(d))}.`
       : `Your balance will go from ${num(me.credits)} to ${num(after)}. After unlocking, press the ${DRINKS[d]} button on the machine within ${secs} — if you don't, your credits are refunded automatically.`,

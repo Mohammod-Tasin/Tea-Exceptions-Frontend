@@ -1,6 +1,6 @@
 "use strict";
 (async function () {
-const { $, el, api, num, pick, list, fmtTime, DRINKS, KIND, badge, table, toast, errText, confirmDialog } = TC;
+const { $, el, api, num, pick, list, fmtTime, DRINKS, KIND, badge, payBadge, table, toast, errText, confirmDialog } = TC;
 const { cfg, me } = await TC.boot();
 const app = $("app");
 if (!me) return TC.signInCard(app, cfg, "Sign in to view the admin page.");
@@ -83,14 +83,41 @@ async function loadOrders() {
     rows.map(o => [t(pick(o, "createdAt", "created_at")), mail(o), DRINKS[o.drink] || o.drink, num(pick(o, "price", "cost", "credits") ?? 0), badge(o.status), pick(o, "refundReason", "refund_reason") || ""])));
 }
 
+// ---- payments ----
+const payBox = el("div");
+const payStatus = el("select", { "aria-label": "Payment status" }, [["", "All"], ["pending", "Checking"], ["needs_review", "Needs review"], ["paid", "Paid"], ["not_found", "Not found"], ["used", "Used"], ["too_old", "Too old"], ["not_eligible", "Not eligible"]].map(([v, l]) => el("option", { value: v }, l)));
+payStatus.addEventListener("change", loadPayments);
+
+async function loadPayments() {
+  const rows = await get("/api/admin/payments?limit=50&status=" + encodeURIComponent(payStatus.value));
+  if (!rows) return;
+  payBox.replaceChildren(rows.length ? table(["Time", "Email", "TrxID", "Status", "Amount (BDT)", "Credits", "Attempts", "Last error", ""],
+    rows.map(p => [t(pick(p, "createdAt", "created_at")), mail(p), p.trxId, payBadge(p.status), nb(pick(p, "amountBdt", "amount_bdt")), nb(p.credits), nb(p.attempts), pick(p, "lastError", "last_error") || "",
+      (p.status === "needs_review" || p.status === "pending") && el("button", { class: "small", onclick: () => retryPayment(p) }, "Retry")]))
+    : el("p", { class: "muted" }, "No payments found"));
+}
+
+async function retryPayment(p) {
+  if (!(await confirmDialog("Retry this payment?", [["TrxID", p.trxId], ["Email", mail(p)]]))) return;
+  const r = await api("/api/admin/payments/retry", { method: "POST", body: { id: p.id } });
+  if (r && r.ok) { toast("Retry started"); loadPayments(); } else toast(errText(r), true);
+}
+
+async function sendTest() {
+  if (!(await confirmDialog("Send test report email?", []))) return;
+  const r = await api("/api/admin/report/send-test", { method: "POST" });
+  if (r && r.ok) toast("Test email sent"); else toast(errText(r), true);
+}
+
 const card = (title, ...kids) => el("section", { class: "card" }, el("h2", {}, title), ...kids);
 app.append(
   card("Users", el("div", { class: "row" }, q, el("button", { onclick: loadUsers }, "Search")), usersBox),
   card("Adjust credits", el("form", { onsubmit: adjust },
     el("label", {}, "Email", emailIn), el("label", {}, "Amount (+ or −)", amtIn), el("label", {}, "Note (required)", noteIn),
     el("button", { type: "submit" }, "Apply"), adjMsg)),
+  card("Payments", el("label", {}, "Status", payStatus), el("button", { class: "secondary", onclick: sendTest }, "Send test report email"), payBox),
   card("Recent transactions", txBox),
   card("Recent orders", el("label", {}, "Status", statusSel), ordBox));
 q.addEventListener("keydown", e => e.key === "Enter" && loadUsers());
-loadUsers(); loadTx(); loadOrders();
+loadUsers(); loadTx(); loadOrders(); loadPayments();
 })();

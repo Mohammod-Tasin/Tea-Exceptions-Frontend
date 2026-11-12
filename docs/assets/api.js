@@ -57,7 +57,7 @@ const list = b => Array.isArray(b) ? b : ((b && Object.values(b).find(Array.isAr
 
 const DRINKS = { tea: "Tea", coffee: "Coffee", hotwater: "Hot water" };
 const STATUS = { pending: "Pending", completed: "Completed", refunded: "Refunded" };
-const KIND = { recharge: "Recharge", purchase: "Purchase", refund: "Refund", admin_adjust: "Admin adjustment" };
+const KIND = { recharge: "Recharge (bKash)", purchase: "Purchase", refund: "Refund", admin_adjust: "Admin adjustment" };
 
 let toastT;
 function toast(msg, err) {
@@ -67,6 +67,8 @@ function toast(msg, err) {
   clearTimeout(toastT); toastT = setTimeout(() => (t.hidden = true), 4000);
 }
 
+const PSTATUS = { paid: ["Paid", "completed"], pending: ["Checking…", "pending"], not_found: ["Not found", "refunded"], used: ["Used", "refunded"], already_used: ["Used", "refunded"], too_old: ["Too old", "refunded"], not_eligible: ["Not eligible", "refunded"], needs_review: ["Needs review", "pending"] };
+const payBadge = status => { const [l, c] = PSTATUS[status] || [status, ""]; return el("span", { class: "badge " + c }, l); };
 const badge = status => el("span", { class: "badge " + status }, STATUS[status] || status);
 
 function table(heads, rows) {
@@ -160,5 +162,5 @@ async function boot() {
   return { cfg, me };
 }
 
-window.TC = { $, el, api, errText, getConfig, getMe, num, credits, fmtTime, pick, list, DRINKS, STATUS, KIND, toast, badge, table, confirmDialog, signInCard, renderHeader, setCredits, boot };
+window.TC = { $, el, api, errText, getConfig, getMe, num, credits, fmtTime, pick, list, DRINKS, STATUS, KIND, toast, badge, payBadge, table, confirmDialog, signInCard, renderHeader, setCredits, boot };
 })();
